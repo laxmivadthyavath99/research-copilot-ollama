@@ -43,7 +43,10 @@ app = FastAPI(title="Research Copilot API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten this to your Vercel domain before prod
+    allow_origins=[
+        "http://localhost:5173",
+        "https://research-copilot-ollama-heny.vercel.app",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
