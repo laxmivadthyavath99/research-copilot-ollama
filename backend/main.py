@@ -45,7 +45,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://research-copilot-ollama-heny.vercel.app",
+        "https://research-copilot-ollama.vercel.app",
     ],
     allow_methods=["*"],
     allow_headers=["*"],
