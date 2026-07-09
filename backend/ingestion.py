@@ -72,14 +72,32 @@ def search_arxiv(query: str, max_results: int = 10) -> list[PaperMeta]:
 
 
 def download_pdf_text(pdf_url: str) -> str:
-    """Download a PDF and extract raw text using PyMuPDF."""
-    resp = requests.get(pdf_url, timeout=30)
-    resp.raise_for_status()
-    doc = fitz.open(stream=io.BytesIO(resp.content), filetype="pdf")
-    full_text = ""
-    for page in doc:
-        full_text += page.get_text()
-    doc.close()
+    """
+    Download a PDF and extract raw text using PyMuPDF.
+    Streams to a temp file instead of holding raw bytes + parsed doc in
+    memory simultaneously - matters on memory-constrained hosts (e.g.
+    Render's free 512MB tier).
+    """
+    import tempfile
+    import os as _os
+    import gc
+
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp_path = tmp.name
+        with requests.get(pdf_url, timeout=30, stream=True) as resp:
+            resp.raise_for_status()
+            for chunk in resp.iter_content(chunk_size=1024 * 64):
+                tmp.write(chunk)
+
+    try:
+        doc = fitz.open(tmp_path)
+        pages_text = [page.get_text() for page in doc]
+        doc.close()
+        full_text = "".join(pages_text)
+    finally:
+        _os.remove(tmp_path)
+        gc.collect()
+
     return full_text
 
 
