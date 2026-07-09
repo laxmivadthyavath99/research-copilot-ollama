@@ -41,8 +41,17 @@ def search_arxiv(query: str, max_results: int = 10) -> list[PaperMeta]:
         "start": 0,
         "max_results": max_results,
     }
-    resp = requests.get(ARXIV_API, params=params, timeout=15)
-    resp.raise_for_status()
+    try:
+        resp = requests.get(ARXIV_API, params=params, timeout=30)
+        resp.raise_for_status()
+    except requests.exceptions.Timeout:
+        raise TimeoutError(
+            "arXiv API took too long to respond. It's sometimes slow/rate-limited "
+            "- wait a few seconds and try again."
+        )
+    except requests.exceptions.RequestException as e:
+        raise ConnectionError(f"Couldn't reach arXiv: {e}")
+
     root = ET.fromstring(resp.text)
 
     papers = []
@@ -106,6 +115,11 @@ def chunk_text(paper_id: str, text: str, target_tokens: int = 500) -> list[Chunk
     chunks = []
     idx = 0
     for section_name, section_text in sections:
+        # References/bibliography is a list of paper titles - it's noise
+        # for retrieval (matches on keywords without explaining anything)
+        # and can crowd out genuinely useful chunks. Skip it.
+        if section_name == "references":
+            continue
         section_text = section_text.strip()
         if not section_text:
             continue
